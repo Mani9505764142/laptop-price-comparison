@@ -1,7 +1,6 @@
 from flask import Flask, render_template, request
 from flipkart_scraper import scrape_flipkart
 from amazon_scraper import scrape_amazon
-from demo_data import get_demo_data
 import pandas as pd
 import os
 
@@ -32,39 +31,29 @@ def compare():
         return render_template('index.html', error="Please enter a product name")
     
     try:
-        # Check if running in production (Render) or locally
-        is_production = os.environ.get('RENDER') is not None
-        
+        # Scrape both platforms
         print(f"Scraping for: {product_name}")
-        print(f"Environment: {'Production (Demo Mode)' if is_production else 'Local (Live Scraping)'}")
         
-        if is_production:
-            # Use demo data on Render (Chrome/Selenium not available)
-            all_products = get_demo_data(product_name)
-            message = "📌 Demo Mode: Showing sample laptop data. Web scraping requires Chrome/ChromeDriver which isn't available on free hosting. For live scraping, run locally - see GitHub README for installation."
-        else:
-            # Use real scraping locally
-            flipkart_products = []
-            amazon_products = []
-            
-            try:
-                flipkart_products = scrape_flipkart(product_name) or []
-            except Exception as e:
-                print(f"Flipkart scraping error: {e}")
-            
-            try:
-                amazon_products = scrape_amazon(product_name) or []
-            except Exception as e:
-                print(f"Amazon scraping error: {e}")
-            
-            all_products = flipkart_products + amazon_products
-            message = None
+        flipkart_products = []
+        amazon_products = []
+        
+        try:
+            flipkart_products = scrape_flipkart(product_name) or []
+        except Exception as e:
+            print(f"Flipkart scraping error: {e}")
+        
+        try:
+            amazon_products = scrape_amazon(product_name) or []
+        except Exception as e:
+            print(f"Amazon scraping error: {e}")
+        
+        all_products = flipkart_products + amazon_products
         
         if not all_products:
             return render_template('results.html', 
                                    product_name=product_name,
                                    products=[],
-                                   message="No products found on either platform")
+                                   message="No products found. Try searching for 'lenovo laptop' or 'hp laptop'")
         
         # Clean prices for comparison
         def clean_price(price_str):
@@ -98,8 +87,7 @@ def compare():
                                product_name=product_name,
                                products=all_products,
                                stats=stats,
-                               cheapest=cheapest,
-                               message=message)
+                               cheapest=cheapest)
     
     except Exception as e:
         print(f"Error in compare route: {str(e)}")

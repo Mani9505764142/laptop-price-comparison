@@ -1,176 +1,129 @@
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+import requests
+from bs4 import BeautifulSoup
 import time
 import random
-import pandas as pd
 
 def scrape_amazon(product_name):
-    chrome_options = Options()
-    chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    chrome_options.add_experimental_option('useAutomationExtension', False)
-    chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-    chrome_options.add_argument('--start-maximized')
+    """
+    Scrapes Amazon for laptop products using BeautifulSoup
+    Works on free hosting (Render, Vercel, etc.)
+    """
     
-    user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    chrome_options.add_argument(f'user-agent={user_agent}')
+    products = []
     
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=chrome_options
-    )
+    # Amazon search URL
+    search_url = f"https://www.amazon.in/s?k={product_name}+laptop"
     
-    driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
-    driver.execute_cdp_cmd('Network.setUserAgentOverride', {
-        "userAgent": user_agent,
-        "platform": "Win32"
-    })
+    # Headers to mimic browser request
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
     
     try:
-        time.sleep(random.uniform(1, 2))
+        print(f"Scraping Amazon for: {product_name}")
         
-        driver.get("https://www.amazon.in")
-        time.sleep(random.uniform(2, 3))
+        # Make request
+        response = requests.get(search_url, headers=headers, timeout=10)
         
-        search_url = f"https://www.amazon.in/s?k={product_name.replace(' ', '+')}"
-        driver.get(search_url)
-        time.sleep(random.uniform(4, 6))
+        if response.status_code != 200:
+            print(f"Amazon returned status code: {response.status_code}")
+            return []
         
-        print("Page loaded, extracting data...\n")
+        # Parse HTML
+        soup = BeautifulSoup(response.content, 'html.parser')
         
-        driver.execute_script("window.scrollTo(0, 800);")
-        time.sleep(1)
+        # Find product containers
+        product_containers = soup.find_all('div', {'data-component-type': 's-search-result'})
         
-        products = []
-        product_containers = driver.find_elements(By.CSS_SELECTOR, "div[data-component-type='s-search-result']")
+        print(f"Found {len(product_containers)} products on Amazon")
         
-        print(f"Found {len(product_containers)} product containers\n")
-        
-        for idx, container in enumerate(product_containers[:15], 1):
+        for container in product_containers[:15]:  # Limit to 15 products
             try:
-                time.sleep(random.uniform(0.1, 0.3))
+                # Extract product name
+                name_elem = container.find('h2', {'class': 'a-size-mini'}) or \
+                           container.find('span', {'class': 'a-size-medium'}) or \
+                           container.find('span', {'class': 'a-size-base-plus'})
                 
-                asin = container.get_attribute('data-asin')
-                if not asin:
+                if not name_elem:
+                    continue
+                    
+                product_name_text = name_elem.get_text(strip=True)
+                
+                # Filter out non-laptop items
+                exclude_keywords = ['tablet', 'monitor', 'mouse', 'keyboard', 'bag', 
+                                   'backpack', 'cable', 'adapter', 'charger', 'stand',
+                                   'cover', 'case', 'screen guard', 'pen drive']
+                
+                if any(keyword in product_name_text.lower() for keyword in exclude_keywords):
                     continue
                 
-                # Try to find product name
-                name = None
-                name_selectors = [
-                    "h2 span.a-text-normal",
-                    "h2 a span",
-                    "h2 span",
-                    "span.a-size-medium.a-color-base.a-text-normal",
-                    "span.a-size-base-plus"
-                ]
+                # Must contain laptop-related keywords
+                laptop_keywords = ['laptop', 'notebook', 'core i3', 'core i5', 'core i7', 
+                                  'ryzen', 'ram', 'ssd', 'windows', 'intel', 'amd', 'gb']
                 
-                for selector in name_selectors:
-                    try:
-                        name_elem = container.find_element(By.CSS_SELECTOR, selector)
-                        name = name_elem.text.strip()
-                        if name:
-                            break
-                    except:
+                if not any(keyword in product_name_text.lower() for keyword in laptop_keywords):
+                    continue
+                
+                # Extract price
+                price_elem = container.find('span', {'class': 'a-price-whole'})
+                
+                if not price_elem:
+                    continue
+                    
+                price = price_elem.get_text(strip=True)
+                
+                # Format price
+                price = f"₹{price.replace(',', '')}"
+                
+                # Convert price to number for filtering
+                try:
+                    price_num = int(price.replace('₹', '').replace(',', '').strip())
+                    if price_num < 15000:  # Filter out accessories
                         continue
+                except:
+                    continue
                 
-                # Try to find price
-                price = None
-                price_selectors = [
-                    "span.a-price-whole",
-                    "span.a-price span",
-                    "span.a-offscreen",
-                    "span.a-color-price"
-                ]
+                # Extract ASIN and create product link
+                asin = container.get('data-asin', '')
+                if asin:
+                    product_link = f"https://www.amazon.in/dp/{asin}"
+                else:
+                    product_link = search_url
                 
-                for selector in price_selectors:
-                    try:
-                        price_elem = container.find_element(By.CSS_SELECTOR, selector)
-                        price_text = price_elem.text or price_elem.get_attribute('textContent')
-                        if price_text and ('₹' in price_text or price_text.replace(',', '').isdigit()):
-                            price = price_text.strip()
-                            if not price.startswith('₹'):
-                                price = '₹' + price
-                            break
-                    except:
-                        continue
+                # Add to products list
+                products.append({
+                    'Product Name': product_name_text,
+                    'Price': price,
+                    'Source': 'Amazon',
+                    'ASIN': asin,
+                    'Link': product_link
+                })
                 
-                # ============ NEW FILTER LOGIC ============
-                if name and price:
-                    # Skip tablets, accessories, and non-laptop items
-                    skip_keywords = [
-                        'Tab|',  # Tablets (Tab| to avoid matching in descriptions)
-    'Tablet',
-    'iPad',
-    'Keyboard',
-    'Mouse',
-    'Bag',
-    'Case',
-    'Charger',
-    'Adapter',
-    'Cable',
-    'Stand',
-    'Screen Protector',
-    'Sleeve',
-    'Monitor',
-    'Display Only'  # Changed from just "Display"
-                    ]
-                    
-                    # Check if product name contains skip keywords
-                    name_lower = name.lower()
-                    if any(keyword.lower() in name_lower for keyword in skip_keywords):
-                        print(f"  ✗ Skipped: {name[:50]} (Not a laptop)")
-                        continue
-                    
-                    # Skip if price is too low (likely accessory)
-                    try:
-                        price_num = int(price.replace('₹', '').replace(',', '').strip())
-                        if price_num < 15000:  # Skip items under ₹15,000
-                            print(f"  ✗ Skipped: {name[:50]} (Price too low: {price})")
-                            continue
-                    except:
-                        pass
-                    
-                    products.append({
-                        'Product Name': name,
-                        'Price': price,
-                        'Source': 'Amazon',
-                        'ASIN': asin
-                    })
-                    print(f"  ✓ {len(products)}. {name[:60]}...")
-                    print(f"     {price}\n")
-                    
-                    if len(products) >= 5:
-                        break
-                    
             except Exception as e:
+                print(f"Error parsing Amazon product: {e}")
                 continue
         
+        print(f"Successfully scraped {len(products)} products from Amazon")
         return products
         
-    except Exception as e:
-        print(f"Fatal Error: {e}")
+    except requests.exceptions.Timeout:
+        print("Amazon request timed out")
         return []
-        
-    finally:
-        time.sleep(2)
-        driver.quit()
+    except Exception as e:
+        print(f"Error scraping Amazon: {e}")
+        return []
+
 
 if __name__ == "__main__":
-    print("=" * 80)
-    print("AMAZON PRODUCT SCRAPER (WITH LAPTOP FILTER)")
-    print("=" * 80 + "\n")
-    
-    results = scrape_amazon("lenovo")
-    
-    if results:
-        print("\n" + "=" * 80)
-        print(f"✓ SUCCESS! Scraped {len(results)} products")
-        print("=" * 80 + "\n")
-        
-        for i, product in enumerate(results, 1):
-            print(f"{i}. {product['Product Name'][:60]}...")
-            print(f"   {product['Price']}\n")
-    else:
-        print("\n❌ No products found")
+    # Test the scraper
+    results = scrape_amazon("hp")
+    print(f"\nFound {len(results)} products:")
+    for product in results[:3]:
+        print(f"\n{product['Product Name']}")
+        print(f"Price: {product['Price']}")
+        print(f"Link: {product['Link']}")
