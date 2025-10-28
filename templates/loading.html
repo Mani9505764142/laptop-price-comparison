@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Searching - {{ product_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .loading-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 60vh;
+            text-align: center;
+        }
+
+        .spinner {
+            width: 80px;
+            height: 80px;
+            border: 8px solid rgba(255, 255, 255, 0.3);
+            border-top: 8px solid white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 30px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+        }
+
+        .loading-subtitle {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1rem;
+        }
+
+        .progress-steps {
+            margin-top: 30px;
+            color: white;
+        }
+
+        .step {
+            margin: 10px 0;
+            opacity: 0.5;
+            transition: opacity 0.3s;
+        }
+
+        .step.active {
+            opacity: 1;
+            font-weight: bold;
+        }
+
+        .step.complete {
+            opacity: 1;
+            color: #4caf50;
+        }
+
+        .step.complete::before {
+            content: "✓ ";
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛒 Product Price Comparison Tool</h1>
+        </header>
+
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <h2 class="loading-text">Searching for "{{ product_name }}"</h2>
+            <p class="loading-subtitle">Please wait while we compare prices...</p>
+
+            <div class="progress-steps">
+                <div class="step active" id="step1">🔍 Searching Flipkart...</div>
+                <div class="step" id="step2">🔍 Searching Amazon...</div>
+                <div class="step" id="step3">📊 Comparing prices...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Automatically submit form to trigger scraping
+        setTimeout(function() {
+            document.getElementById('compareForm').submit();
+        }, 100);
+
+        // Animate progress steps
+        setTimeout(function() {
+            document.getElementById('step1').classList.add('complete');
+            document.getElementById('step1').classList.remove('active');
+            document.getElementById('step2').classList.add('active');
+        }, 8000);
+
+        setTimeout(function() {
+            document.getElementById('step2').classList.add('complete');
+            document.getElementById('step2').classList.remove('active');
+            document.getElementById('step3').classList.add('active');
+        }, 16000);
+    </script>
+
+    <!-- Hidden form that submits to /compare -->
+    <form id="compareForm" method="POST" action="/compare" style="display: none;">
+        <input type="hidden" name="product_name" value="{{ product_name }}">
+    </form>
+</body>
+</html>

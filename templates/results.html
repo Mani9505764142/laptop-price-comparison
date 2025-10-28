@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Results - {{ product_name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛒 Product Price Comparison Tool</h1>
+            <a href="/" class="back-link">← Back to Search</a>
+        </header>
+
+        <div class="search-info">
+            <h2>Results for: "{{ product_name }}"</h2>
+            
+            {% if message %}
+            <div class="message">{{ message }}</div>
+            {% endif %}
+        </div>
+
+        {% if products %}
+        <div class="stats">
+            <div class="stat-box">
+                <h3>{{ stats.flipkart_count }}</h3>
+                <p>Flipkart Products</p>
+            </div>
+            <div class="stat-box">
+                <h3>{{ stats.amazon_count }}</h3>
+                <p>Amazon Products</p>
+            </div>
+            <div class="stat-box highlight">
+                <h3>{{ stats.cheapest_price }}</h3>
+                <p>Best Deal on {{ stats.cheapest_platform }}</p>
+            </div>
+        </div>
+
+        <div class="products">
+            {% for product in products %}
+            <div class="product-card {% if loop.index0 == 0 %}best-deal{% endif %}">
+                {% if loop.index0 == 0 %}
+                <div class="badge">🏆 Best Deal</div>
+                {% endif %}
+                
+                <div class="product-info">
+                    <h3>{{ product['Product Name'][:150] }}{% if product['Product Name']|length > 150 %}...{% endif %}</h3>
+                    <div class="product-details">
+                        <span class="price">{{ product['Price'] }}</span>
+                        <span class="source {{ product['Source'].lower() }}">{{ product['Source'] }}</span>
+                    </div>
+                    
+                    <!-- NEW: Buy Now Button -->
+                    <div class="action-buttons">
+                        {% if product['Source'] == 'Amazon' and product.get('ASIN') %}
+                            <a href="https://www.amazon.in/dp/{{ product['ASIN'] }}" target="_blank" class="buy-button amazon-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                Buy on Amazon
+                            </a>
+                        {% elif product['Source'] == 'Flipkart' %}
+                            <a href="https://www.flipkart.com/search?q={{ product['Product Name'][:50]|urlencode }}" target="_blank" class="buy-button flipkart-btn">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                </svg>
+                                Buy on Flipkart
+                            </a>
+                        {% endif %}
+                        
+                        <button class="compare-button" onclick="copyToClipboard('{{ product['Product Name'] }}', '{{ product['Price'] }}', '{{ product['Source'] }}')">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path>
+                            </svg>
+                            Copy Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        function copyToClipboard(name, price, source) {
+            const text = `${name}\nPrice: ${price}\nSource: ${source}`;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Product details copied to clipboard!');
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+    </script>
+</body>
+</html>
