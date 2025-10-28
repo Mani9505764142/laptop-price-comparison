@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request
 from flipkart_scraper import scrape_flipkart
 from amazon_scraper import scrape_amazon
 import pandas as pd
@@ -91,5 +91,6 @@ if __name__ == '__main__':
     os.makedirs('static', exist_ok=True)
     os.makedirs('data', exist_ok=True)
     
-   port = int(os.environ.get('PORT', 5000))
-  app.run(debug=False, host='0.0.0.0', port=port)
+    # Get port from environment variable (for deployment) or use 5000 for local
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
